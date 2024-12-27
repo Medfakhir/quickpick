@@ -4,31 +4,56 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import bcrypt from 'bcrypt';
 
-// Create a single client instance
-const client = new MongoClient(process.env.DATABASE_URL);
+// Move client initialization inside functions to avoid build-time errors
+let client = null;
 
-// Helper function to get MongoDB client
 async function getMongoClient() {
-  if (!client.isConnected()) await client.connect();
+  if (!client) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL is not defined');
+    }
+    client = new MongoClient(process.env.DATABASE_URL);
+  }
+  
+  if (!client.isConnected()) {
+    await client.connect();
+  }
   return client;
 }
 
-export async function GET(req, { params }) {
-  const { id } = params;
-  const headersList = headers();
-  const token = headersList.get('Authorization')?.split(' ')[1];
-
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// Helper function to verify JWT
+function verifyAuth(token, userId) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not defined');
   }
+  
+  const decoded = verify(token, process.env.JWT_SECRET);
+  if (decoded.userId !== userId) {
+    throw new Error('Unauthorized');
+  }
+  return decoded;
+}
 
+export async function GET(req, { params }) {
   try {
-    // Verify the token
-    const decoded = verify(token, process.env.JWT_SECRET);
+    const { id } = params;
+    const headersList = headers();
+    const authHeader = headersList.get('Authorization');
+    
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Check token match
-    if (decoded.userId !== id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Invalid authorization header' }, { status: 401 });
+    }
+
+    // Verify auth
+    try {
+      verifyAuth(token, id);
+    } catch (error) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Validate ObjectId
@@ -58,25 +83,34 @@ export async function GET(req, { params }) {
       role: user.role,
       cart: user.cart || [],
     }, { status: 200 });
-  } catch (err) {
-    console.error('Error verifying token or fetching user:', err);
-    return NextResponse.json(
-      { error: 'Invalid token or user not found' },
-      { status: 401 }
-    );
+  } catch (error) {
+    console.error('GET Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 export async function PATCH(req, { params }) {
-  const { id } = params;
-  const headersList = headers();
-  const token = headersList.get('Authorization')?.split(' ')[1];
-
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const { id } = params;
+    const headersList = headers();
+    const authHeader = headersList.get('Authorization');
+
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Invalid authorization header' }, { status: 401 });
+    }
+
+    // Verify auth
+    try {
+      verifyAuth(token, id);
+    } catch (error) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Validate ObjectId
     let objectId;
     try {
@@ -85,15 +119,8 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET);
-    if (decoded.userId !== id) {
-      console.error("Token user ID mismatch:", decoded.userId, id);
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     const updates = await req.json();
-    console.log("Updates:", updates);
-
+    
     // Validate updates
     const allowedFields = ['name', 'email', 'phone', 'address'];
     const sanitizedUpdates = {};
@@ -104,10 +131,9 @@ export async function PATCH(req, { params }) {
     }
 
     const mongoClient = await getMongoClient();
-    const db = mongoClient.db("test");
-    const usersCollection = db.collection("users");
+    const db = mongoClient.db('test');
+    const usersCollection = db.collection('users');
 
-    // Check if user exists
     const existingUser = await usersCollection.findOne({ _id: objectId });
     if (!existingUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -128,46 +154,51 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
 
-    const userToReturn = {
-      id: updatedUser._id.toString(),
-      name: updatedUser.name,
-      email: updatedUser.email,
-      phone: updatedUser.phone,
-      address: updatedUser.address
-    };
-
     return NextResponse.json({
       success: true,
-      user: userToReturn
+      user: {
+        id: updatedUser._id.toString(),
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        address: updatedUser.address
+      }
     }, { status: 200 });
 
   } catch (error) {
-    console.error("Error in PATCH handler:", error.message);
+    console.error('PATCH Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 export async function POST(req, { params }) {
-  const { id } = params;
-  const headersList = headers();
-  const token = headersList.get('Authorization')?.split(' ')[1];
-
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    const { id } = params;
+    const headersList = headers();
+    const authHeader = headersList.get('Authorization');
+
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Invalid authorization header' }, { status: 401 });
+    }
+
+    // Verify auth
+    try {
+      verifyAuth(token, id);
+    } catch (error) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Validate ObjectId
     let objectId;
     try {
       objectId = new ObjectId(id);
     } catch (error) {
       return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
-    }
-
-    const decoded = verify(token, process.env.JWT_SECRET);
-    if (decoded.userId !== id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await req.json();
@@ -184,12 +215,11 @@ export async function POST(req, { params }) {
 
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   } catch (error) {
-    console.error('Error in POST handler:', error.message);
+    console.error('POST Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-// Helper functions for POST route
 async function handlePasswordUpdate(userId, { currentPassword, newPassword }) {
   const mongoClient = await getMongoClient();
   const db = mongoClient.db('test');
