@@ -7,58 +7,71 @@ const bcrypt = require('bcrypt');
 const client = new MongoClient(process.env.DATABASE_URL); // MongoDB connection URI from .env
 
 export async function GET(req, { params }) {
-  const { id } = await params; // Get user ID from the URL
-  const token = req.headers.get('Authorization')?.split(' ')[1]; // Get token from the header
+  // Validate params
+  if (!params || !params.id) {
+      return new Response(JSON.stringify({ error: 'Missing ID in route parameters' }), { status: 400 });
+  }
+  const { id } = params;
+
+  // Validate Authorization header
+  if (!req.headers || !req.headers.get('Authorization')) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), { status: 401 });
+  }
+  const token = req.headers.get('Authorization')?.split(' ')[1];
 
   if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
   try {
-    // Verify the token with your secret
-    const decoded = verify(token, process.env.JWT_SECRET);
+      // Verify token
+      let decoded;
+      try {
+          decoded = verify(token, process.env.JWT_SECRET);
+      } catch (error) {
+          return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401 });
+      }
 
-    // If the decoded userId does not match the requested id, return forbidden
-    if (decoded.userId !== id) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
-    }
+      if (decoded.userId !== id) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+      }
 
-    // Connect to MongoDB
-    await client.connect();
-    const db = client.db('test'); // Use your actual database name
-    const usersCollection = db.collection('users'); // Replace with your users collection name
+      // Connect to MongoDB
+      await client.connect();
+      const db = client.db('test'); // Use your actual database name
+      const usersCollection = db.collection('users'); // Replace with your users collection name
 
-    // Fetch the user from MongoDB by userId
-    const user = await usersCollection.findOne({ _id: new ObjectId(id) }); // Find user by ObjectId
+      // Fetch user from MongoDB
+      const user = await usersCollection.findOne({ _id: new ObjectId(id) });
 
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 });
-    }
+      if (!user) {
+          return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 });
+      }
 
-    // Return the user data including the cart
-    return new Response(
-      JSON.stringify({
-        id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        phone: user.phone || '', // Include phone
-        address: user.address || '', // Include address
-        role: user.role,
-        cart: user.cart || [], // Include cart
-      }),
-      { status: 200 }
-    );
+      // Return user data
+      return new Response(
+          JSON.stringify({
+              id: user._id.toString(),
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '', // Include phone
+              address: user.address || '', // Include address
+              role: user.role,
+              cart: user.cart || [], // Include cart
+          }),
+          { status: 200 }
+      );
   } catch (err) {
-    console.error('Error verifying token or fetching user:', err);
-    return new Response(
-      JSON.stringify({ error: 'Invalid token or user not found' }),
-      { status: 401 }
-    );
+      console.error('Error verifying token or fetching user:', err);
+      return new Response(
+          JSON.stringify({ error: 'Internal server error' }),
+          { status: 500 }
+      );
   } finally {
-    // Close MongoDB connection
-    await client.close();
+      await client.close();
   }
 }
+
 
 export async function PATCH(req, { params }) {
   try {
