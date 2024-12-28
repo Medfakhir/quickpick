@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Store Website by Medfakhir (Medev)
+
+This is a store website created by **Medfakhir (Medev)** using modern web development tools. The project emphasizes performance, scalability, and a clean, responsive design.
+
+---
+
+## Technologies Used
+
+- **Framework**: [Next.js](https://nextjs.org)
+- **Database**: [MongoDB](https://www.mongodb.com) with [Prisma](https://www.prisma.io)
+- **Styling**: [TailwindCSS](https://tailwindcss.com)
+
+This project was initialized using [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app), offering a robust structure for scalable web applications.
+
+---
+
+## Features
+
+- 🚀 **Fast and Modern**: Built with Next.js for server-side rendering and optimized performance.
+- 🛠️ **Database-Driven**: Prisma ORM for seamless interaction with MongoDB.
+- 🎨 **Beautiful UI**: Styled with TailwindCSS for a clean and responsive design.
+- 🔄 **Real-Time Updates**: Next.js auto-updates during development for instant feedback.
+
+---
 
 ## Getting Started
 
-First, run the development server:
+Follow these steps to set up the project locally on your machine.
+
+### Prerequisites
+
+Ensure you have the following installed:
+
+- **Node.js**: [Download Node.js](https://nodejs.org) (v16 or higher recommended)
+- **MongoDB**: [Set up MongoDB](https://www.mongodb.com/docs/manual/installation) (or access to a MongoDB Atlas cluster)
+
+---
+
+### 1. Install Dependencies
+
+To install the project dependencies, run the following command:
 
 ```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+
+
+2. Set Up Environment Variables
+The application requires environment variables for configuration. Create a .env file in the root directory and add the following variables:
+
+env
+Copy code
+DATABASE_URL=mongodb+srv://<username>:<password>@cluster.mongodb.net/<dbname>?retryWrites=true&w=majority
+NEXTAUTH_SECRET=<your-secret>
+Replace <username>, <password>, <dbname>, and <your-secret> with your actual MongoDB credentials and a secret key for authentication.
+
+3. Run Prisma Migrations
+Run the following command to set up the database schema:
+
+bash
+Copy code
+npx prisma migrate dev
+This will apply the necessary migrations to your MongoDB database, ensuring it is ready for use.
+
+Running the Development Server
+Start the development server with the following command:
+
+bash
+Copy code
 npm run dev
 # or
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
-```
+Visit http://localhost:3000 in your browser to view the application.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+You can edit the main page in app/page.js, and the changes will be reflected immediately.
