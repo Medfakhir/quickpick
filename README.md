@@ -1,4 +1,4 @@
-# Store Website by Medfakhir (Medev)
+# Store Website with admin dashboard by Medfakhir (Medev) 
 
 This is a store website created by **Medfakhir (Medev)** using modern web development tools. The project emphasizes performance, scalability, and a clean, responsive design.
 
